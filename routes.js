@@ -5,7 +5,7 @@ const db = require('./db/models');
 router.get('/', async (req, res, next) => {
     try {
       const books = await db.Book.findAll({ order: [['title', 'ASC']] });
-      res.render('index', { title: 'Home', books });
+      res.render('book-list', { title: 'Books', books });
     } catch (err) {
       next(err);
     }
