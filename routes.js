@@ -1,29 +1,59 @@
 const express = require('express');
 const csrf = require('csurf');
+const { check, validationResult } = require('express-validator');
 
 const db = require('./db/models');
 
 const router = express.Router();
 
-const csrfProtection = csrf({cookie:true});
+const csrfProtection = csrf({ cookie: true });
 
 const asyncHandler = (handler) => (req, res, next) => handler(req, res, next).catch(next);
 
 router.get('/', asyncHandler(async (req, res) => {
- const books = await db.Book.findAll({ order: [['title', 'ASC']] });
- res.render('book-list', { title: 'Books', books });
+  const books = await db.Book.findAll({ order: [['title', 'ASC']] });
+  res.render('book-list', { title: 'Books', books });
 }));
 
 router.get('/book/add', csrfProtection, (req, res) => {
-    const book = db.Book.build();
-    res.render('book-add', {
-      title: 'Add Book',
-      book,
-      csrfToken: req.csrfToken(),
-    });
+  const book = db.Book.build();
+  res.render('book-add', {
+    title: 'Add Book',
+    book,
+    csrfToken: req.csrfToken(),
   });
+});
 
-  router.post('/book/add', csrfProtection, asyncHandler(async (req, res, next) => {
+const bookValidators = [
+  check('title')
+    .exists({ checkFalsy: true })
+    .withMessage('Please provide a value for Title')
+    .isLength({ max: 255 })
+    .withMessage('Title must not be more than 255 characters long'),
+  check('author')
+    .exists({ checkFalsy: true })
+    .withMessage('Please provide a value for Author')
+    .isLength({ max: 100 })
+    .withMessage('Author must not be more than 100 characters long'),
+  check('releaseDate')
+    .exists({ checkFalsy: true })
+    .withMessage('Please provide a value for Release Date')
+    .isISO8601()
+    .withMessage('Please provide a valid date for Release Date'),
+  check('pageCount')
+    .exists({ checkFalsy: true })
+    .withMessage('Please provide a value for Page Count')
+    .isInt({ min: 0 })
+    .withMessage('Please provide a valid integer for Page Count'),
+  check('publisher')
+    .exists({ checkFalsy: true })
+    .withMessage('Please provide a value for Publisher')
+    .isLength({ max: 100 })
+    .withMessage('Publisher must not be more than 100 characters long'),
+];
+
+router.post('/book/add', csrfProtection, bookValidators,
+  asyncHandler(async (req, res) => {
     const {
       title,
       author,
@@ -40,21 +70,19 @@ router.get('/book/add', csrfProtection, (req, res) => {
       publisher,
     });
 
-    try {
+    const validatorErrors = validationResult(req);
+
+    if (validatorErrors.isEmpty()) {
       await book.save();
       res.redirect('/');
-    } catch (err) {
-      if (err.name === 'SequelizeValidationError') {
-        const errors = err.errors.map((error) => error.message);
-        res.render('book-add', {
-          title: 'Add Book',
-          book,
-          errors,
-          csrfToken: req.csrfToken(),
-        });
-      } else {
-        next(err);
-      }
+    } else {
+      const errors = validatorErrors.array().map((error) => error.msg);
+      res.render('book-add', {
+        title: 'Add Book',
+        book,
+        errors,
+        csrfToken: req.csrfToken(),
+      });
     }
   }));
 
