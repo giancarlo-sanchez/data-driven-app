@@ -44,17 +44,17 @@ router.get('/book/add', csrfProtection, (req, res) => {
       await book.save();
       res.redirect('/');
     } catch (err) {
-        if (err.name === 'SequelizeValidationError') {
-            const errors = err.errors.map((error) => error.message);
-            res.render('book-add', {
-              title: 'Add Book',
-              book,
-              errors,
-              csrfToken: req.csrfToken(),
-            });
-          } else {
-            next(err);
-          }
+      if (err.name === 'SequelizeValidationError') {
+        const errors = err.errors.map((error) => error.message);
+        res.render('book-add', {
+          title: 'Add Book',
+          book,
+          errors,
+          csrfToken: req.csrfToken(),
+        });
+      } else {
+        next(err);
+      }
     }
   }));
 
